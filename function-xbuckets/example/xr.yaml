@@ -4,4 +4,8 @@ kind: XR
 metadata:
   name: example-xr
 spec:
-  region: us-east-2
+  region: eu-central-1
+  names:
+    - pe-crossplane-functions-example-a
+    - pe-crossplane-functions-example-b
+    - pe-crossplane-functions-example-c

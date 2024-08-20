@@ -12,10 +12,8 @@ from function import fn
 
 class TestFunctionRunner(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
-        # Allow larger diffs, since we diff large strings of JSON.
-        self.maxDiff = 2000
-
         logging.configure(level=logging.Level.DISABLED)
+        self.maxDiff = 2000
 
     async def test_run_function(self) -> None:
         @dataclasses.dataclass
@@ -26,19 +24,62 @@ class TestFunctionRunner(unittest.IsolatedAsyncioTestCase):
 
         cases = [
             TestCase(
-                reason="The function should return the input as a result.",
+                reason="The function should compose two S3 buckets.",
                 req=fnv1beta1.RunFunctionRequest(
-                    input=resource.dict_to_struct({"example": "Hello, world"})
+                    observed=fnv1beta1.State(
+                        composite=fnv1beta1.Resource(
+                            resource=resource.dict_to_struct(
+                                {
+                                    "apiVersion": "example.crossplane.io/v1alpha1",
+                                    "kind": "XBuckets",
+                                    "metadata": {"name": "test"},
+                                    "spec": {
+                                        "region": "us-east-2",
+                                        "names": ["test-bucket-a", "test-bucket-b"],
+                                    },
+                                }
+                            )
+                        )
+                    )
                 ),
                 want=fnv1beta1.RunFunctionResponse(
                     meta=fnv1beta1.ResponseMeta(ttl=durationpb.Duration(seconds=60)),
-                    desired=fnv1beta1.State(),
-                    results=[
-                        fnv1beta1.Result(
-                            severity=fnv1beta1.SEVERITY_NORMAL,
-                            message="I was run with input Hello, world!",
-                        )
-                    ],
+                    desired=fnv1beta1.State(
+                        resources={
+                            "xbuckets-test-bucket-a": fnv1beta1.Resource(
+                                resource=resource.dict_to_struct(
+                                    {
+                                        "apiVersion": "s3.aws.upbound.io/v1beta1",
+                                        "kind": "Bucket",
+                                        "metadata": {
+                                            "annotations": {
+                                                "crossplane.io/external-name": "test-bucket-a"
+                                            },
+                                        },
+                                        "spec": {
+                                            "forProvider": {"region": "us-east-2"}
+                                        },
+                                    }
+                                )
+                            ),
+                            "xbuckets-test-bucket-b": fnv1beta1.Resource(
+                                resource=resource.dict_to_struct(
+                                    {
+                                        "apiVersion": "s3.aws.upbound.io/v1beta1",
+                                        "kind": "Bucket",
+                                        "metadata": {
+                                            "annotations": {
+                                                "crossplane.io/external-name": "test-bucket-b"
+                                            },
+                                        },
+                                        "spec": {
+                                            "forProvider": {"region": "us-east-2"}
+                                        },
+                                    }
+                                )
+                            ),
+                        },
+                    ),
                     context=structpb.Struct(),
                 ),
             ),
@@ -49,8 +90,8 @@ class TestFunctionRunner(unittest.IsolatedAsyncioTestCase):
         for case in cases:
             got = await runner.RunFunction(case.req, None)
             self.assertEqual(
-                json_format.MessageToDict(case.want),
                 json_format.MessageToDict(got),
+                json_format.MessageToDict(case.want),
                 "-want, +got",
             )
 

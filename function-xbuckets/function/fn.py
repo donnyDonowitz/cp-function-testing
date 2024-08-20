@@ -22,12 +22,38 @@ class FunctionRunner(grpcv1beta1.FunctionRunnerService):
 
         rsp = response.to(req)
 
-        example = ""
-        if "example" in req.input:
-            example = req.input["example"]
+        # Hello world example
 
-        # TODO: Add your function logic here!
-        response.normal(rsp, f"I was run with input {example}!")
-        log.info("I was run!", input=example)
+        # example = ""
+        # if "example" in req.input:
+        #     example = req.input["example"]
 
+        # # TODO: Add your function logic here!
+        # response.normal(rsp, f"I was run with input {example}!")
+        # log.info("I was run!", input=example)
+
+        # return rsp
+
+        region = req.observed.composite.resource["spec"]["region"]
+        names = req.observed.composite.resource["spec"]["names"]
+
+        for name in names:
+            rsp.desired.resources[f"xbuckets-{name}"].resource.update(
+                {
+                    "apiVersion": "s3.aws.upbound.io/v1beta1",
+                    "kind": "Bucket",
+                    "metadata": {
+                        "annotations": {
+                            "crossplane.io/external-name": name,
+                        },
+                    },
+                    "spec": {
+                        "forProvider": {
+                            "region": region,
+                        },
+                    },
+                }
+            )
+
+        log.info("Added desired buckets", region=region, count=len(names))
         return rsp

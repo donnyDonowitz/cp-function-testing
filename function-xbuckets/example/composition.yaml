@@ -1,17 +1,13 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: function-template-python
+  name: create-buckets
 spec:
   compositeTypeRef:
     apiVersion: example.crossplane.io/v1
-    kind: XR
+    kind: XBuckets
   mode: Pipeline
   pipeline:
-  - step: run-the-template
-    functionRef:
-      name: function-template-python
-    input:
-      apiVersion: template.fn.crossplane.io/v1beta1
-      kind: Input
-      example: "Hello world"
+    - step: create-buckets
+      functionRef:
+        name: function-xbuckets
